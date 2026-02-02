@@ -31,19 +31,30 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { toast } from 'sonner';
 import { tbmlRFIs, controlCheckRFIs, type RFIOption } from '@/data/rfiData';
 
-// Custom dark theme for Material-UI
-const darkTheme = createTheme({
+// IDFC First Bank Theme - Red/Maroon with White
+const idfcTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#22d3ee',
+      main: '#ffffff',
+      contrastText: '#7a1f2e',
     },
     secondary: {
-      main: '#a855f7',
+      main: '#f5a623',
     },
     background: {
-      default: '#0f172a',
-      paper: '#1e293b',
+      default: '#5a1520',
+      paper: '#6b1f2c',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: 'rgba(255, 255, 255, 0.8)',
+    },
+    error: {
+      main: '#ff6b6b',
+    },
+    success: {
+      main: '#4caf50',
     },
   },
   typography: {
@@ -54,9 +65,9 @@ const darkTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          backgroundColor: 'rgba(30, 41, 59, 0.8)',
+          backgroundColor: 'rgba(107, 31, 44, 0.85)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(71, 85, 105, 0.4)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
         },
       },
     },
@@ -69,8 +80,46 @@ const darkTheme = createTheme({
         },
       },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#ffffff',
+          },
+        },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          '&.Mui-focused': {
+            color: '#ffffff',
+          },
+        },
+      },
+    },
+    MuiRadio: {
+      styleOverrides: {
+        root: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          '&.Mui-checked': {
+            color: '#ffffff',
+          },
+        },
+      },
+    },
   },
 });
+
+// Base API URL - update this to your backend
+const BASE_IP_URL_1 = 'https://your-api-endpoint.com';
 
 type UploadType = 'tbml' | 'controlChecks';
 
@@ -83,6 +132,8 @@ interface UploadState {
   uploadedBytes: number;
   totalBytes: number;
   completed: boolean;
+  currentPart: number;
+  totalParts: number;
 }
 
 const Index: React.FC = () => {
@@ -92,14 +143,17 @@ const Index: React.FC = () => {
     file: null,
     uploading: false,
     progress: 0,
-    uploadSpeed: '0 KB/s',
+    uploadSpeed: '0 MB/s',
     timeRemaining: '--',
     uploadedBytes: 0,
     totalBytes: 0,
     completed: false,
+    currentPart: 0,
+    totalParts: 0,
   });
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadStartTimeRef = useRef<number>(0);
 
   const rfiOptions: RFIOption[] = uploadType === 'tbml' ? tbmlRFIs : controlCheckRFIs;
 
@@ -143,11 +197,13 @@ const Index: React.FC = () => {
       file,
       uploading: false,
       progress: 0,
-      uploadSpeed: '0 KB/s',
+      uploadSpeed: '0 MB/s',
       timeRemaining: '--',
       uploadedBytes: 0,
       totalBytes: file.size,
       completed: false,
+      currentPart: 0,
+      totalParts: 0,
     });
   };
 
@@ -177,15 +233,24 @@ const Index: React.FC = () => {
       file: null,
       uploading: false,
       progress: 0,
-      uploadSpeed: '0 KB/s',
+      uploadSpeed: '0 MB/s',
       timeRemaining: '--',
       uploadedBytes: 0,
       totalBytes: 0,
       completed: false,
+      currentPart: 0,
+      totalParts: 0,
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const getOptimalPartSize = (size: number): number => {
+    if (size > 1024 * 1024 * 1024) return 50 * 1024 * 1024; // 50MB for > 1GB
+    if (size > 500 * 1024 * 1024) return 20 * 1024 * 1024;  // 20MB for > 500MB
+    if (size > 100 * 1024 * 1024) return 10 * 1024 * 1024;  // 10MB for > 100MB
+    return 5 * 1024 * 1024;                                 // 5MB min (S3 requirement)
   };
 
   const handleUpload = async () => {
@@ -201,88 +266,234 @@ const Index: React.FC = () => {
       return;
     }
 
-    setUploadState(prev => ({ ...prev, uploading: true, progress: 0, completed: false }));
-    const startTime = Date.now();
+    console.log('='.repeat(50));
+    console.log('🚀 STARTING MULTIPART UPLOAD PROCESS');
+    console.log('='.repeat(50));
+    console.log('📋 Upload Details:');
+    console.log(' • File:', file.name);
+    console.log(' • File Size:', (file.size / (1024 * 1024)).toFixed(2), 'MB');
+    console.log(' • File Type:', file.type);
+    console.log(' • Upload Type:', uploadType);
+    console.log(' • Selected RFI:', selectedRFI);
+
+    uploadStartTimeRef.current = Date.now();
+    
+    setUploadState(prev => ({ 
+      ...prev, 
+      uploading: true, 
+      progress: 0, 
+      completed: false 
+    }));
 
     try {
-      const presignedUrl = "https://rapid-s3-sa.s3.ap-south-1.amazonaws.com/test.zip?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAVRUVPM4D7HU2R756%2F20260119%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260119T062334Z&X-Amz-Expires=604700&X-Amz-SignedHeaders=host&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEMb%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCmFwLXNvdXRoLTEiSDBGAiEAz5xv6B%2Bmkv7ZvjV%2BAAf6tN7ew6IIYfVtP8zTcHVBMxYCIQD4%2FQZONmO8WB3Z%2Fj8L1fBxx8bTIhSMyKtkca3sd0YVMSqNBQiP%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F8BEAAaDDM4MTQ5MTgzMjU4MyIMXy57anVrhcf0L63GKuEEfCG2OYbBJxuwGVEQDFS%2BbFOvsTP1WlU7BmNRwTN%2FlEq0IEgYE9ibv8J8wKa19FBAmBNkupmwmnq7435ZWbZXrSWgw8MSM7cNa79FMMDFNrhUE69fuzkrH3fjLRZvL%2FbbLHJl2U%2FLE0pe2xGzQqanMO4MevzZeYUVyTKaLmdhRQJ%2FRPaH9eGnFXFRsumpp9dL0kqMOejX2WSUYPUU87wXJVonVY0ZC7yWYCMNxHgOo7k7p9QoK%2FSO1J4oo1oJKpIGms0vCMmq%2F73ff2RyPg1JIrlcXBLdHiu9IhVktUcKg7bveTkAzjgz674B2APJMdDXZX%2B9K9rJsRHGHsaIoFuNsURG3CDWbkx4N4jTTR5mMpQRIIDsbPHHfvP2QsZLogEm4rebj9JoinBacss3V1uoaDFfGhS7S%2FOcKiKwlof5PRUI6LcRcmDoV5VvuF5IC9OzDKwp31Sr6yKr7oJIWgeAfnW4IL7tAXMN7mSOWF7VmCHAK46JHNFtnTL4UU70DobsWiF6uP3TP7C9gDRQwtk22ile9heFxFJxVShXiTmiwNj3idhMfTQwPcADpouvwQOS1nJho4vsEC0AnV36%2FVnEw8ykN3cF7le8xlmN05L2o1rmlo0q9p%2FEIE9sMRqVL%2FuU%2BjGhCACq2oOPKYHCsbTZT7o%2Fe0AK2taKmShl9573KvtGeuZpJh1HaWBzuCMGZB1sDpsReTryK%2BxmqsQ446lJAhxr8r2ut9pyfGYk%2F7aJXMwMfKw4ltzoY0JnfPMWJCLTl6UDEi81sTSNPuRtvAknWeQgiiFU%2BWLzNqkV%2FeGoXgDKMJGZt8sGOpcBWas0Fq1FgA%2Fqjb1EcGBf1YO5xnjSPDuoOWBoRVOgr4kCTdgQVmLP1oEuzT1LlC8cF3sdTAzq4pumFiytZvPIHfyHPjr%2FS%2Fr4sl22B5jMI7mgsenE2Xm7ZzGYaF7rmSROW8G6EiAK%2FctiBgk%2BO5KU%2FxSS2NGE1Un797oI4NEAcY7XDvYx5QZ6K2Z0QWdxshJgz3Ol5gktIQ%3D%3D&X-Amz-Signature=4f1585feb7e08c0a72c68ba48109479545822cd34de71656c06a1786579cf6ef";
-
-      // Use XMLHttpRequest for progress tracking
-      const xhr = new XMLHttpRequest();
+      const partSize = getOptimalPartSize(file.size);
+      const totalParts = Math.ceil(file.size / partSize);
       
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100);
-          const elapsedTime = (Date.now() - startTime) / 1000;
-          const bytesPerSecond = e.loaded / elapsedTime;
-          const remainingBytes = e.total - e.loaded;
-          const remainingTime = remainingBytes / bytesPerSecond;
+      console.log(`📦 Strategy: ${totalParts} parts of ${(partSize / 1024 / 1024).toFixed(0)}MB each`);
+      
+      setUploadState(prev => ({ ...prev, totalParts }));
 
-          setUploadState(prev => ({
-            ...prev,
-            progress: percentComplete,
-            uploadSpeed: formatSpeed(bytesPerSecond),
-            timeRemaining: formatTime(remainingTime),
-            uploadedBytes: e.loaded,
-          }));
-        }
+      // Step 1: Initialize multipart upload
+      const initResp = await fetch(`${BASE_IP_URL_1}/api/multipart/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type || 'application/octet-stream',
+          uploadType,
+          rfiId: selectedRFI,
+        }),
       });
 
-      await new Promise<void>((resolve, reject) => {
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed with status: ${xhr.status}`));
+      if (!initResp.ok) throw new Error('Failed to initiate multipart upload');
+      const { uploadId, key } = await initResp.json();
+      console.log('✅ Upload initiated:', { uploadId, key });
+
+      // Step 2: Get presigned URLs for all parts
+      const urlsResp = await fetch(`${BASE_IP_URL_1}/api/multipart/part-urls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key,
+          uploadId,
+          parts: totalParts,
+        }),
+      });
+
+      if (!urlsResp.ok) throw new Error('Failed to get part URLs');
+      const { urls } = await urlsResp.json();
+      console.log(`✅ Received ${urls.length} presigned URLs`);
+
+      // Step 3: Upload parts with concurrency control
+      const concurrency = 6;
+      let active = 0;
+      let index = 0;
+      const etags: { ETag: string; PartNumber: number }[] = [];
+      const uploadedMap: Record<number, number> = {};
+      let lastProgressUpdate = 0;
+
+      const updateProgress = () => {
+        const totalUploaded = Object.values(uploadedMap).reduce((a, b) => a + b, 0);
+        const percent = Math.min(100, Math.round((totalUploaded / file.size) * 100));
+        const elapsedTime = (Date.now() - uploadStartTimeRef.current) / 1000;
+        const bytesPerSecond = totalUploaded / elapsedTime;
+        const remainingBytes = file.size - totalUploaded;
+        const remainingTime = remainingBytes / bytesPerSecond;
+
+        setUploadState(prev => ({
+          ...prev,
+          progress: percent,
+          uploadedBytes: totalUploaded,
+          uploadSpeed: formatSpeed(bytesPerSecond),
+          timeRemaining: formatTime(remainingTime),
+        }));
+      };
+
+      const uploadPart = (partNumber: number, blob: Blob, url: string, retryCount = 0): Promise<void> => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', url);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              uploadedMap[partNumber] = event.loaded;
+              
+              const now = Date.now();
+              if (now - lastProgressUpdate > 100) {
+                lastProgressUpdate = now;
+                updateProgress();
+              }
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const etag = xhr.getResponseHeader('ETag') || '';
+              etags.push({ ETag: etag, PartNumber: partNumber });
+              uploadedMap[partNumber] = blob.size;
+              console.log(`✅ Part ${partNumber} uploaded (ETag: ${etag})`);
+              setUploadState(prev => ({ ...prev, currentPart: prev.currentPart + 1 }));
+              resolve();
+            } else {
+              if (retryCount < 3) {
+                console.log(`⚠️ Retrying part ${partNumber} (Attempt ${retryCount + 1})...`);
+                setTimeout(() => uploadPart(partNumber, blob, url, retryCount + 1).then(resolve).catch(reject), 1000 * Math.pow(2, retryCount));
+              } else {
+                reject(new Error(`Part ${partNumber} failed with status ${xhr.status}`));
+              }
+            }
+          };
+
+          xhr.onerror = () => {
+            if (retryCount < 3) {
+              console.log(`⚠️ Retrying part ${partNumber} (Network Error, Attempt ${retryCount + 1})...`);
+              setTimeout(() => uploadPart(partNumber, blob, url, retryCount + 1).then(resolve).catch(reject), 1000 * Math.pow(2, retryCount));
+            } else {
+              reject(new Error(`Network error on part ${partNumber}`));
+            }
+          };
+
+          xhr.send(blob);
+        });
+      };
+
+      const runNext = (): Promise<void> => {
+        if (index >= totalParts) return Promise.resolve();
+
+        const current = index++;
+        const partNumber = current + 1;
+        const start = current * partSize;
+        const end = Math.min(start + partSize, file.size);
+        const blob = file.slice(start, end);
+
+        const urlObj = urls.find((u: { partNumber: number; url: string }) => u.partNumber === partNumber);
+        const url = urlObj?.url || '';
+        if (!url) return Promise.reject(new Error(`Missing URL for part ${partNumber}`));
+
+        console.log(`📤 Uploading part ${partNumber}/${totalParts}`);
+        return uploadPart(partNumber, blob, url);
+      };
+
+      // Create concurrent upload pool
+      const pool: Promise<void>[] = [];
+      while (active < concurrency && index < totalParts) {
+        active++;
+        const chain = runNext().then(function run(): Promise<void> | void {
+          active--;
+          if (index < totalParts) {
+            active++;
+            return runNext().then(run);
           }
-        };
+        });
+        pool.push(chain);
+      }
 
-        xhr.onerror = () => reject(new Error('Network error during upload'));
-        
-        xhr.open('PUT', presignedUrl, true);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-        xhr.send(file);
+      await Promise.all(pool);
+      console.log('✅ All parts uploaded successfully');
+
+      // Step 4: Complete multipart upload
+      const completeResp = await fetch(`${BASE_IP_URL_1}/api/multipart/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key,
+          uploadId,
+          parts: etags.sort((a, b) => a.PartNumber - b.PartNumber),
+        }),
       });
 
-      const uploadDuration = ((Date.now() - startTime) / 1000).toFixed(2);
-      
+      if (!completeResp.ok) throw new Error('Failed to complete upload');
+      const completeData = await completeResp.json();
+
+      const uploadEndTime = Date.now();
+      const uploadDuration = ((uploadEndTime - uploadStartTimeRef.current) / 1000).toFixed(2);
+      const speedMBps = ((file.size / (uploadEndTime - uploadStartTimeRef.current)) * 1000 / (1024 * 1024)).toFixed(2);
+
       setUploadState(prev => ({
         ...prev,
         uploading: false,
         progress: 100,
         completed: true,
-        uploadSpeed: '0 KB/s',
+        uploadSpeed: `${speedMBps} MB/s`,
         timeRemaining: 'Complete',
       }));
 
+      console.log('✅ MULTIPART UPLOAD COMPLETE!');
+      console.log('  • File Name:', key);
+      console.log('  • URL:', completeData.url);
+      console.log('  • Duration:', uploadDuration, 'seconds');
+      console.log('  • Speed:', speedMBps, 'MB/s');
+
       toast.success(
-        `File uploaded successfully! Duration: ${uploadDuration}s`,
+        `File uploaded successfully! Duration: ${uploadDuration}s (${speedMBps} MB/s)`,
         { duration: 5000 }
       );
 
     } catch (err) {
-      console.error('Upload error:', err);
+      console.error('❌ MULTIPART UPLOAD ERROR:', err);
       toast.error(err instanceof Error ? err.message : 'File upload failed');
       setUploadState(prev => ({
         ...prev,
         uploading: false,
         progress: 0,
-        uploadSpeed: '0 KB/s',
+        uploadSpeed: '0 MB/s',
         timeRemaining: '--',
+        currentPart: 0,
       }));
     }
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <Box className="gradient-bg min-h-screen flex items-center justify-center p-6">
+    <ThemeProvider theme={idfcTheme}>
+      <Box className="idfc-gradient-bg min-h-screen flex items-center justify-center p-6">
         <Card 
           elevation={0}
           sx={{ 
             maxWidth: 600, 
             width: '100%',
             borderRadius: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px -10px rgba(34, 211, 238, 0.15)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 60px -15px rgba(255, 255, 255, 0.1)',
           }}
         >
           <CardContent sx={{ p: 4 }}>
@@ -292,22 +503,21 @@ const Index: React.FC = () => {
                 variant="h4" 
                 sx={{ 
                   fontWeight: 700, 
-                  background: 'linear-gradient(135deg, #22d3ee 0%, #a855f7 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                  color: '#ffffff',
                   mb: 1,
+                  letterSpacing: '-0.02em',
                 }}
               >
                 S3 File Upload
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Upload your compliance documents securely
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                IDFC FIRST Bank - Secure Document Upload
               </Typography>
             </Box>
 
             {/* Upload Type Selection */}
             <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'rgba(255, 255, 255, 0.8)', fontWeight: 600 }}>
                 Select Upload Type
               </Typography>
               <RadioGroup
@@ -319,14 +529,13 @@ const Index: React.FC = () => {
                   '& .MuiFormControlLabel-root': {
                     flex: 1,
                     m: 0,
-                    border: '1px solid',
-                    borderColor: 'divider',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     borderRadius: '12px',
                     p: 1.5,
                     transition: 'all 0.2s ease',
                     '&:has(.Mui-checked)': {
-                      borderColor: 'primary.main',
-                      bgcolor: 'rgba(34, 211, 238, 0.08)',
+                      borderColor: '#ffffff',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
                     },
                   },
                 }}
@@ -336,8 +545,8 @@ const Index: React.FC = () => {
                   control={<Radio />} 
                   label={
                     <Box>
-                      <Typography variant="body1" fontWeight={600}>TBML</Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body1" fontWeight={600} color="#ffffff">TBML</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         Trade Based Money Laundering
                       </Typography>
                     </Box>
@@ -348,8 +557,8 @@ const Index: React.FC = () => {
                   control={<Radio />} 
                   label={
                     <Box>
-                      <Typography variant="body1" fontWeight={600}>Control Checks</Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body1" fontWeight={600} color="#ffffff">Control Checks</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         Compliance Verification
                       </Typography>
                     </Box>
@@ -368,8 +577,17 @@ const Index: React.FC = () => {
                 onChange={(e) => setSelectedRFI(e.target.value)}
                 sx={{ 
                   borderRadius: '12px',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'divider',
+                  color: '#ffffff',
+                  '& .MuiSelect-icon': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      bgcolor: '#6b1f2c',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                    },
                   },
                 }}
               >
@@ -391,14 +609,14 @@ const Index: React.FC = () => {
                 textAlign: 'center',
                 borderRadius: '16px',
                 border: '2px dashed',
-                borderColor: isDragOver ? 'primary.main' : 'divider',
-                bgcolor: isDragOver ? 'rgba(34, 211, 238, 0.05)' : 'transparent',
+                borderColor: isDragOver ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
+                bgcolor: isDragOver ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 mb: 3,
                 '&:hover': {
-                  borderColor: 'primary.main',
-                  bgcolor: 'rgba(34, 211, 238, 0.05)',
+                  borderColor: '#ffffff',
+                  bgcolor: 'rgba(255, 255, 255, 0.08)',
                 },
               }}
               onClick={() => !uploadState.uploading && fileInputRef.current?.click()}
@@ -416,12 +634,12 @@ const Index: React.FC = () => {
                 <Fade in>
                   <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                      <InsertDriveFile sx={{ fontSize: 48, color: 'primary.main' }} />
+                      <InsertDriveFile sx={{ fontSize: 48, color: '#ffffff' }} />
                       <Box sx={{ textAlign: 'left' }}>
-                        <Typography variant="body1" fontWeight={600}>
+                        <Typography variant="body1" fontWeight={600} color="#ffffff">
                           {uploadState.file.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                           {formatBytes(uploadState.file.size)}
                         </Typography>
                       </Box>
@@ -429,7 +647,7 @@ const Index: React.FC = () => {
                         <IconButton 
                           size="small" 
                           onClick={(e) => { e.stopPropagation(); clearFile(); }}
-                          sx={{ ml: 'auto' }}
+                          sx={{ ml: 'auto', color: '#ffffff' }}
                         >
                           <Close fontSize="small" />
                         </IconButton>
@@ -439,16 +657,25 @@ const Index: React.FC = () => {
                 </Fade>
               ) : (
                 <Box>
-                  <CloudUpload sx={{ fontSize: 56, color: 'text.secondary', mb: 2 }} />
-                  <Typography variant="body1" fontWeight={600} sx={{ mb: 0.5 }}>
+                  <CloudUpload sx={{ fontSize: 56, color: 'rgba(255, 255, 255, 0.6)', mb: 2 }} />
+                  <Typography variant="body1" fontWeight={600} color="#ffffff" sx={{ mb: 0.5 }}>
                     Drag & drop your file here
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                     or click to browse
                   </Typography>
                   <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
                     {['.zip', '.rar', '.7z', '.tar', '.gz'].map((ext) => (
-                      <Chip key={ext} label={ext} size="small" variant="outlined" />
+                      <Chip 
+                        key={ext} 
+                        label={ext} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ 
+                          borderColor: 'rgba(255, 255, 255, 0.4)', 
+                          color: 'rgba(255, 255, 255, 0.8)',
+                        }} 
+                      />
                     ))}
                   </Box>
                 </Box>
@@ -460,10 +687,10 @@ const Index: React.FC = () => {
               <Fade in>
                 <Box sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" fontWeight={600}>
-                      {uploadState.completed ? 'Upload Complete' : 'Uploading...'}
+                    <Typography variant="body2" fontWeight={600} color="#ffffff">
+                      {uploadState.completed ? 'Upload Complete' : `Uploading... Part ${uploadState.currentPart}/${uploadState.totalParts}`}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
                       {uploadState.progress}%
                     </Typography>
                   </Box>
@@ -472,17 +699,17 @@ const Index: React.FC = () => {
                     variant="determinate" 
                     value={uploadState.progress}
                     sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: 'rgba(71, 85, 105, 0.4)',
+                      height: 10,
+                      borderRadius: 5,
+                      bgcolor: 'rgba(255, 255, 255, 0.15)',
                       '& .MuiLinearProgress-bar': {
-                        borderRadius: 4,
+                        borderRadius: 5,
                         background: uploadState.completed 
-                          ? 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)'
-                          : 'linear-gradient(90deg, #22d3ee 0%, #a855f7 100%)',
+                          ? 'linear-gradient(90deg, #4caf50 0%, #81c784 100%)'
+                          : 'linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%)',
                         boxShadow: uploadState.completed
-                          ? '0 0 10px rgba(34, 197, 94, 0.5)'
-                          : '0 0 10px rgba(34, 211, 238, 0.5)',
+                          ? '0 0 15px rgba(76, 175, 80, 0.6)'
+                          : '0 0 15px rgba(255, 255, 255, 0.4)',
                       },
                     }}
                   />
@@ -495,32 +722,33 @@ const Index: React.FC = () => {
                     mt: 2,
                     p: 2,
                     borderRadius: '12px',
-                    bgcolor: 'rgba(30, 41, 59, 0.5)',
+                    bgcolor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                   }}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Speed sx={{ color: 'primary.main', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" color="text.secondary">
+                      <Speed sx={{ color: '#ffffff', mb: 0.5 }} />
+                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         Speed
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" fontWeight={600} color="#ffffff">
                         {uploadState.uploadSpeed}
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: 'center' }}>
-                      <DataUsage sx={{ color: 'secondary.main', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" color="text.secondary">
+                      <DataUsage sx={{ color: '#f5a623', mb: 0.5 }} />
+                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         Uploaded
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" fontWeight={600} color="#ffffff">
                         {formatBytes(uploadState.uploadedBytes)}
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Timer sx={{ color: 'warning.main', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" color="text.secondary">
+                      <Timer sx={{ color: '#81c784', mb: 0.5 }} />
+                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
                         Time Left
                       </Typography>
-                      <Typography variant="body2" fontWeight={600}>
+                      <Typography variant="body2" fontWeight={600} color="#ffffff">
                         {uploadState.timeRemaining}
                       </Typography>
                     </Box>
@@ -541,19 +769,20 @@ const Index: React.FC = () => {
                 py: 1.5,
                 fontSize: '1rem',
                 background: uploadState.completed 
-                  ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                  : 'linear-gradient(135deg, #22d3ee 0%, #a855f7 100%)',
+                  ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
+                  : '#ffffff',
+                color: uploadState.completed ? '#ffffff' : '#7a1f2e',
                 boxShadow: uploadState.completed
-                  ? '0 10px 30px -10px rgba(34, 197, 94, 0.4)'
-                  : '0 10px 30px -10px rgba(34, 211, 238, 0.4)',
+                  ? '0 10px 30px -10px rgba(76, 175, 80, 0.5)'
+                  : '0 10px 30px -10px rgba(255, 255, 255, 0.4)',
                 '&:hover': {
                   background: uploadState.completed 
-                    ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)'
-                    : 'linear-gradient(135deg, #06b6d4 0%, #9333ea 100%)',
+                    ? 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)'
+                    : 'rgba(255, 255, 255, 0.9)',
                 },
                 '&:disabled': {
-                  background: 'rgba(71, 85, 105, 0.5)',
-                  color: 'rgba(255, 255, 255, 0.3)',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'rgba(255, 255, 255, 0.4)',
                 },
               }}
             >

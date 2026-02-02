@@ -2,83 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
-/* S3 Upload App Design System - Professional Dark Theme */
+/* IDFC First Bank Design System - Red/Maroon with White */
 
 @layer base {
   :root {
-    /* Core backgrounds - Deep navy/slate gradient feel */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* Core backgrounds - IDFC Red/Maroon gradient */
+    --background: 350 70% 25%;
+    --foreground: 0 0% 100%;
 
-    /* Card surfaces */
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
+    /* Card surfaces - Darker maroon */
+    --card: 350 65% 20%;
+    --card-foreground: 0 0% 100%;
 
     /* Popover */
-    --popover: 222 47% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 350 65% 18%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Primary - Vibrant cyan/teal accent */
-    --primary: 187 85% 53%;
-    --primary-foreground: 222 47% 11%;
+    /* Primary - White for buttons/accents on dark bg */
+    --primary: 0 0% 100%;
+    --primary-foreground: 350 70% 25%;
 
-    /* Secondary - Muted slate */
-    --secondary: 217 33% 22%;
-    --secondary-foreground: 210 40% 90%;
+    /* Secondary - Lighter maroon */
+    --secondary: 350 55% 35%;
+    --secondary-foreground: 0 0% 100%;
 
     /* Muted surfaces */
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 350 50% 30%;
+    --muted-foreground: 0 0% 85%;
 
-    /* Accent - Soft purple glow */
-    --accent: 262 83% 58%;
-    --accent-foreground: 210 40% 98%;
+    /* Accent - Gold/amber for highlights */
+    --accent: 38 92% 50%;
+    --accent-foreground: 350 70% 15%;
 
-    /* Success - For upload success states */
+    /* Success - Green */
     --success: 142 71% 45%;
-    --success-foreground: 210 40% 98%;
+    --success-foreground: 0 0% 100%;
 
     /* Destructive */
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Borders & inputs */
-    --border: 217 33% 25%;
-    --input: 217 33% 20%;
-    --ring: 187 85% 53%;
+    --border: 350 40% 40%;
+    --input: 350 50% 28%;
+    --ring: 0 0% 100%;
 
     --radius: 0.75rem;
 
-    /* Custom upload-specific tokens */
-    --upload-bg: 222 47% 8%;
-    --upload-card: 222 47% 13%;
-    --upload-hover: 222 47% 16%;
-    --progress-track: 217 33% 20%;
-    --progress-fill: 187 85% 53%;
-    --glow-primary: 187 85% 53%;
-    --glow-accent: 262 83% 58%;
+    /* Custom IDFC tokens */
+    --idfc-red: 350 70% 25%;
+    --idfc-dark-red: 350 75% 18%;
+    --idfc-light-red: 350 60% 35%;
+    --idfc-white: 0 0% 100%;
+    --idfc-gold: 38 92% 50%;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 10%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 187 85% 53%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 18%;
-    --secondary-foreground: 210 40% 90%;
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 262 83% 58%;
-    --accent-foreground: 210 40% 98%;
+    --background: 350 75% 15%;
+    --foreground: 0 0% 100%;
+    --card: 350 70% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 350 70% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 350 70% 20%;
+    --secondary: 350 55% 25%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 350 50% 20%;
+    --muted-foreground: 0 0% 80%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 350 70% 15%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 20%;
-    --input: 217 33% 15%;
-    --ring: 187 85% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 350 40% 30%;
+    --input: 350 50% 18%;
+    --ring: 0 0% 100%;
   }
 }
 
@@ -93,43 +91,35 @@
   }
 }
 
-/* Custom utility classes for the upload interface */
+/* Custom utility classes for IDFC branding */
 @layer utilities {
-  .gradient-bg {
+  .idfc-gradient-bg {
     background: linear-gradient(135deg, 
-      hsl(222 47% 8%) 0%, 
-      hsl(222 47% 12%) 50%, 
-      hsl(230 50% 10%) 100%
+      hsl(350 75% 18%) 0%, 
+      hsl(350 70% 25%) 50%, 
+      hsl(350 65% 22%) 100%
     );
   }
 
-  .glow-border {
-    box-shadow: 0 0 20px -5px hsl(var(--glow-primary) / 0.3),
-                inset 0 1px 0 0 hsl(var(--foreground) / 0.05);
+  .idfc-card-glow {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4),
+                0 0 40px -10px rgba(255, 255, 255, 0.1);
   }
 
-  .glow-primary {
-    box-shadow: 0 0 30px -5px hsl(var(--glow-primary) / 0.4);
-  }
-
-  .glass-effect {
-    background: hsl(var(--card) / 0.8);
+  .idfc-glass {
+    background: rgba(100, 30, 40, 0.6);
     backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
   }
 
-  .upload-zone {
-    border: 2px dashed hsl(var(--border));
+  .upload-zone-idfc {
+    border: 2px dashed rgba(255, 255, 255, 0.4);
     transition: all 0.3s ease;
   }
 
-  .upload-zone:hover,
-  .upload-zone.drag-over {
-    border-color: hsl(var(--primary));
-    background: hsl(var(--primary) / 0.05);
-  }
-
-  .progress-glow {
-    box-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+  .upload-zone-idfc:hover,
+  .upload-zone-idfc.drag-over {
+    border-color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
   }
 }
