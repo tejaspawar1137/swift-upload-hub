@@ -4,6 +4,21 @@ export interface RFIOption {
   value: string;
 }
 
+export const tradeIntelligenceRFIs: RFIOption[] = [
+  { id: 'ti-1', label: 'FEMA', value: 'fema' },
+  { id: 'ti-2', label: 'DGFT', value: 'dgft' },
+  { id: 'ti-3', label: 'RBI Guidelines', value: 'rbi' },
+  { id: 'ti-4', label: 'Customs', value: 'customs' },
+  { id: 'ti-5', label: 'Trade Finance', value: 'trade-finance' },
+];
+
+export const masterExcelRFIs: RFIOption[] = [
+  { id: 'me-1', label: 'Customer Master', value: 'customer-master' },
+  { id: 'me-2', label: 'Product Master', value: 'product-master' },
+  { id: 'me-3', label: 'Country Master', value: 'country-master' },
+  { id: 'me-4', label: 'Currency Master', value: 'currency-master' },
+];
+
 export const tbmlRFIs: RFIOption[] = [
   { id: 'tbml-1', label: 'RFI-TBML-001 - Trade Based Money Laundering', value: 'tbml-001' },
   { id: 'tbml-2', label: 'RFI-TBML-002 - Invoice Manipulation', value: 'tbml-002' },
