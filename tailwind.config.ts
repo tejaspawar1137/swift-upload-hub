@@ -47,6 +47,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        idfc: {
+          DEFAULT: "hsl(var(--idfc-maroon))",
+          light: "hsl(var(--idfc-maroon-light))",
+          dark: "hsl(var(--idfc-maroon-dark))",
+          muted: "hsl(var(--idfc-maroon-muted))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

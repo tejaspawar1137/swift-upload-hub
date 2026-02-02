@@ -1,127 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  FormControl,
-  Select,
-  MenuItem,
-  InputLabel,
-  Button,
-  LinearProgress,
-  Paper,
-  Fade,
-  Chip,
-  IconButton,
-} from '@mui/material';
-import {
-  CloudUpload,
-  InsertDriveFile,
-  CheckCircle,
-  Close,
-  Speed,
-  Timer,
-  DataUsage,
-} from '@mui/icons-material';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { toast } from 'sonner';
-import { tbmlRFIs, controlCheckRFIs, type RFIOption } from '@/data/rfiData';
-
-// IDFC First Bank Theme - Red/Maroon with White
-const idfcTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#ffffff',
-      contrastText: '#7a1f2e',
-    },
-    secondary: {
-      main: '#f5a623',
-    },
-    background: {
-      default: '#5a1520',
-      paper: '#6b1f2c',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: 'rgba(255, 255, 255, 0.8)',
-    },
-    error: {
-      main: '#ff6b6b',
-    },
-    success: {
-      main: '#4caf50',
-    },
-  },
-  typography: {
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-          backgroundColor: 'rgba(107, 31, 44, 0.85)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 600,
-          borderRadius: '12px',
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(255, 255, 255, 0.3)',
-          },
-          '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(255, 255, 255, 0.5)',
-          },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#ffffff',
-          },
-        },
-      },
-    },
-    MuiInputLabel: {
-      styleOverrides: {
-        root: {
-          color: 'rgba(255, 255, 255, 0.7)',
-          '&.Mui-focused': {
-            color: '#ffffff',
-          },
-        },
-      },
-    },
-    MuiRadio: {
-      styleOverrides: {
-        root: {
-          color: 'rgba(255, 255, 255, 0.7)',
-          '&.Mui-checked': {
-            color: '#ffffff',
-          },
-        },
-      },
-    },
-  },
-});
+import { tradeIntelligenceRFIs, masterExcelRFIs, tbmlRFIs, type RFIOption } from '@/data/rfiData';
+import { X, Upload, FileText } from 'lucide-react';
 
 // Base API URL - update this to your backend
 const BASE_IP_URL_1 = 'https://your-api-endpoint.com';
 
-type UploadType = 'tbml' | 'controlChecks';
+type UploadType = 'tradeIntelligence' | 'masterExcel' | 'tbml';
 
 interface UploadState {
   file: File | null;
@@ -137,7 +22,7 @@ interface UploadState {
 }
 
 const Index: React.FC = () => {
-  const [uploadType, setUploadType] = useState<UploadType>('tbml');
+  const [uploadType, setUploadType] = useState<UploadType>('tradeIntelligence');
   const [selectedRFI, setSelectedRFI] = useState<string>('');
   const [uploadState, setUploadState] = useState<UploadState>({
     file: null,
@@ -155,10 +40,23 @@ const Index: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadStartTimeRef = useRef<number>(0);
 
-  const rfiOptions: RFIOption[] = uploadType === 'tbml' ? tbmlRFIs : controlCheckRFIs;
+  const getRFIOptions = (): RFIOption[] => {
+    switch (uploadType) {
+      case 'tradeIntelligence':
+        return tradeIntelligenceRFIs;
+      case 'masterExcel':
+        return masterExcelRFIs;
+      case 'tbml':
+        return tbmlRFIs;
+      default:
+        return [];
+    }
+  };
 
-  const handleTypeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadType(event.target.value as UploadType);
+  const rfiOptions = getRFIOptions();
+
+  const handleTypeChange = (type: UploadType) => {
+    setUploadType(type);
     setSelectedRFI('');
   };
 
@@ -247,10 +145,15 @@ const Index: React.FC = () => {
   };
 
   const getOptimalPartSize = (size: number): number => {
-    if (size > 1024 * 1024 * 1024) return 50 * 1024 * 1024; // 50MB for > 1GB
-    if (size > 500 * 1024 * 1024) return 20 * 1024 * 1024;  // 20MB for > 500MB
-    if (size > 100 * 1024 * 1024) return 10 * 1024 * 1024;  // 10MB for > 100MB
-    return 5 * 1024 * 1024;                                 // 5MB min (S3 requirement)
+    if (size > 1024 * 1024 * 1024) return 50 * 1024 * 1024;
+    if (size > 500 * 1024 * 1024) return 20 * 1024 * 1024;
+    if (size > 100 * 1024 * 1024) return 10 * 1024 * 1024;
+    return 5 * 1024 * 1024;
+  };
+
+  const handleCancel = () => {
+    clearFile();
+    setSelectedRFI('');
   };
 
   const handleUpload = async () => {
@@ -262,7 +165,7 @@ const Index: React.FC = () => {
     }
 
     if (!selectedRFI) {
-      toast.error('Please select an RFI from the dropdown');
+      toast.error('Please select an option from the dropdown');
       return;
     }
 
@@ -415,7 +318,6 @@ const Index: React.FC = () => {
         return uploadPart(partNumber, blob, url);
       };
 
-      // Create concurrent upload pool
       const pool: Promise<void>[] = [];
       while (active < concurrency && index < totalParts) {
         active++;
@@ -484,318 +386,189 @@ const Index: React.FC = () => {
     }
   };
 
+  const isUploadDisabled = !uploadState.file || !selectedRFI || uploadState.uploading;
+
   return (
-    <ThemeProvider theme={idfcTheme}>
-      <Box className="idfc-gradient-bg min-h-screen flex items-center justify-center p-6">
-        <Card 
-          elevation={0}
-          sx={{ 
-            maxWidth: 600, 
-            width: '100%',
-            borderRadius: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 60px -15px rgba(255, 255, 255, 0.1)',
-          }}
+    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="bg-card rounded-2xl shadow-xl max-w-xl w-full p-8 relative">
+        {/* Close Button */}
+        <button 
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
+          onClick={handleCancel}
         >
-          <CardContent sx={{ p: 4 }}>
-            {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 4 }}>
-              <Typography 
-                variant="h4" 
-                sx={{ 
-                  fontWeight: 700, 
-                  color: '#ffffff',
-                  mb: 1,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                S3 File Upload
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                IDFC FIRST Bank - Secure Document Upload
-              </Typography>
-            </Box>
+          <X size={24} />
+        </button>
 
-            {/* Upload Type Selection */}
-            <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'rgba(255, 255, 255, 0.8)', fontWeight: 600 }}>
-                Select Upload Type
-              </Typography>
-              <RadioGroup
-                row
-                value={uploadType}
-                onChange={handleTypeChange}
-                sx={{ 
-                  gap: 2,
-                  '& .MuiFormControlLabel-root': {
-                    flex: 1,
-                    m: 0,
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: '12px',
-                    p: 1.5,
-                    transition: 'all 0.2s ease',
-                    '&:has(.Mui-checked)': {
-                      borderColor: '#ffffff',
-                      bgcolor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                  },
-                }}
-              >
-                <FormControlLabel 
-                  value="tbml" 
-                  control={<Radio />} 
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={600} color="#ffffff">TBML</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                        Trade Based Money Laundering
-                      </Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel 
-                  value="controlChecks" 
-                  control={<Radio />} 
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight={600} color="#ffffff">Control Checks</Typography>
-                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                        Compliance Verification
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </RadioGroup>
-            </FormControl>
+        {/* Header */}
+        <h1 className="text-center text-2xl font-semibold text-primary mb-6">
+          Upload File
+        </h1>
 
-            {/* RFI Dropdown */}
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel id="rfi-select-label">Select RFI</InputLabel>
-              <Select
-                labelId="rfi-select-label"
-                value={selectedRFI}
-                label="Select RFI"
-                onChange={(e) => setSelectedRFI(e.target.value)}
-                sx={{ 
-                  borderRadius: '12px',
-                  color: '#ffffff',
-                  '& .MuiSelect-icon': {
-                    color: 'rgba(255, 255, 255, 0.7)',
-                  },
-                }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      bgcolor: '#6b1f2c',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                    },
-                  },
-                }}
-              >
-                {rfiOptions.map((rfi) => (
-                  <MenuItem key={rfi.id} value={rfi.value}>
-                    {rfi.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+        {/* Toggle Buttons */}
+        <div className="flex gap-3 mb-6 justify-center">
+          <button
+            onClick={() => handleTypeChange('tradeIntelligence')}
+            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+              uploadType === 'tradeIntelligence'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            Trade Intelligence
+          </button>
+          <button
+            onClick={() => handleTypeChange('masterExcel')}
+            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+              uploadType === 'masterExcel'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            Master Excel
+          </button>
+          <button
+            onClick={() => handleTypeChange('tbml')}
+            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+              uploadType === 'tbml'
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            TBML
+          </button>
+        </div>
 
-            {/* Upload Zone */}
-            <Paper
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              sx={{
-                p: 4,
-                textAlign: 'center',
-                borderRadius: '16px',
-                border: '2px dashed',
-                borderColor: isDragOver ? '#ffffff' : 'rgba(255, 255, 255, 0.35)',
-                bgcolor: isDragOver ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                mb: 3,
-                '&:hover': {
-                  borderColor: '#ffffff',
-                  bgcolor: 'rgba(255, 255, 255, 0.08)',
-                },
-              }}
-              onClick={() => !uploadState.uploading && fileInputRef.current?.click()}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleInputChange}
-                accept=".zip,.rar,.7z,.tar,.gz"
-                disabled={uploadState.uploading}
-              />
-              
-              {uploadState.file ? (
-                <Fade in>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                      <InsertDriveFile sx={{ fontSize: 48, color: '#ffffff' }} />
-                      <Box sx={{ textAlign: 'left' }}>
-                        <Typography variant="body1" fontWeight={600} color="#ffffff">
-                          {uploadState.file.name}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                          {formatBytes(uploadState.file.size)}
-                        </Typography>
-                      </Box>
-                      {!uploadState.uploading && (
-                        <IconButton 
-                          size="small" 
-                          onClick={(e) => { e.stopPropagation(); clearFile(); }}
-                          sx={{ ml: 'auto', color: '#ffffff' }}
-                        >
-                          <Close fontSize="small" />
-                        </IconButton>
-                      )}
-                    </Box>
-                  </Box>
-                </Fade>
-              ) : (
-                <Box>
-                  <CloudUpload sx={{ fontSize: 56, color: 'rgba(255, 255, 255, 0.6)', mb: 2 }} />
-                  <Typography variant="body1" fontWeight={600} color="#ffffff" sx={{ mb: 0.5 }}>
-                    Drag & drop your file here
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                    or click to browse
-                  </Typography>
-                  <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {['.zip', '.rar', '.7z', '.tar', '.gz'].map((ext) => (
-                      <Chip 
-                        key={ext} 
-                        label={ext} 
-                        size="small" 
-                        variant="outlined" 
-                        sx={{ 
-                          borderColor: 'rgba(255, 255, 255, 0.4)', 
-                          color: 'rgba(255, 255, 255, 0.8)',
-                        }} 
-                      />
-                    ))}
-                  </Box>
-                </Box>
+        {/* Dropdown */}
+        <div className="mb-6">
+          <select
+            value={selectedRFI}
+            onChange={(e) => setSelectedRFI(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none cursor-pointer"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              backgroundSize: '20px',
+            }}
+          >
+            <option value="">Select an option</option>
+            {rfiOptions.map((rfi) => (
+              <option key={rfi.id} value={rfi.value}>
+                {rfi.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Upload Zone */}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => !uploadState.uploading && fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all mb-6 ${
+            isDragOver
+              ? 'border-primary bg-primary/5'
+              : 'border-border bg-muted/30 hover:border-muted-foreground hover:bg-muted/50'
+          }`}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleInputChange}
+            accept=".zip,.rar,.7z,.tar,.gz"
+            disabled={uploadState.uploading}
+          />
+
+          {uploadState.file ? (
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3 mb-2">
+                <FileText className="w-10 h-10 text-primary" />
+                <div className="text-left">
+                  <p className="font-medium text-foreground">{uploadState.file.name}</p>
+                  <p className="text-sm text-muted-foreground">{formatBytes(uploadState.file.size)}</p>
+                </div>
+                {!uploadState.uploading && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); clearFile(); }}
+                    className="ml-2 p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Progress Bar */}
+              {uploadState.uploading && (
+                <div className="w-full mt-4">
+                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                    <span>Uploading... {uploadState.currentPart}/{uploadState.totalParts} parts</span>
+                    <span>{uploadState.progress}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${uploadState.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                    <span>{uploadState.uploadSpeed}</span>
+                    <span>{uploadState.timeRemaining} remaining</span>
+                  </div>
+                </div>
               )}
-            </Paper>
 
-            {/* Progress Section */}
-            {(uploadState.uploading || uploadState.completed) && (
-              <Fade in>
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" fontWeight={600} color="#ffffff">
-                      {uploadState.completed ? 'Upload Complete' : `Uploading... Part ${uploadState.currentPart}/${uploadState.totalParts}`}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-                      {uploadState.progress}%
-                    </Typography>
-                  </Box>
-                  
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={uploadState.progress}
-                    sx={{
-                      height: 10,
-                      borderRadius: 5,
-                      bgcolor: 'rgba(255, 255, 255, 0.15)',
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 5,
-                        background: uploadState.completed 
-                          ? 'linear-gradient(90deg, #4caf50 0%, #81c784 100%)'
-                          : 'linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%)',
-                        boxShadow: uploadState.completed
-                          ? '0 0 15px rgba(76, 175, 80, 0.6)'
-                          : '0 0 15px rgba(255, 255, 255, 0.4)',
-                      },
-                    }}
-                  />
+              {uploadState.completed && (
+                <div className="mt-3 px-4 py-2 bg-success/10 text-success rounded-lg text-sm font-medium">
+                  ✓ Upload Complete
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="mb-4">
+                <Upload className="w-12 h-12 mx-auto text-muted-foreground" strokeWidth={1.5} />
+              </div>
+              <p className="text-foreground font-medium mb-1">
+                Drag and drop your file here
+              </p>
+              <p className="text-muted-foreground text-sm mb-4">or</p>
+              <button
+                type="button"
+                className="px-6 py-2 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary/5 transition-colors"
+              >
+                Select File
+              </button>
+              <p className="text-xs text-muted-foreground mt-4">
+                Supported: .zip, .rar, .7z, .tar, .gz
+              </p>
+            </>
+          )}
+        </div>
 
-                  {/* Upload Stats */}
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(3, 1fr)', 
-                    gap: 2, 
-                    mt: 2,
-                    p: 2,
-                    borderRadius: '12px',
-                    bgcolor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                  }}>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Speed sx={{ color: '#ffffff', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                        Speed
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600} color="#ffffff">
-                        {uploadState.uploadSpeed}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <DataUsage sx={{ color: '#f5a623', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                        Uploaded
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600} color="#ffffff">
-                        {formatBytes(uploadState.uploadedBytes)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Timer sx={{ color: '#81c784', mb: 0.5 }} />
-                      <Typography variant="caption" display="block" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                        Time Left
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600} color="#ffffff">
-                        {uploadState.timeRemaining}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              </Fade>
-            )}
-
-            {/* Upload Button */}
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              onClick={handleUpload}
-              disabled={!uploadState.file || !selectedRFI || uploadState.uploading}
-              startIcon={uploadState.completed ? <CheckCircle /> : <CloudUpload />}
-              sx={{
-                py: 1.5,
-                fontSize: '1rem',
-                background: uploadState.completed 
-                  ? 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)'
-                  : '#ffffff',
-                color: uploadState.completed ? '#ffffff' : '#7a1f2e',
-                boxShadow: uploadState.completed
-                  ? '0 10px 30px -10px rgba(76, 175, 80, 0.5)'
-                  : '0 10px 30px -10px rgba(255, 255, 255, 0.4)',
-                '&:hover': {
-                  background: uploadState.completed 
-                    ? 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)'
-                    : 'rgba(255, 255, 255, 0.9)',
-                },
-                '&:disabled': {
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  color: 'rgba(255, 255, 255, 0.4)',
-                },
-              }}
-            >
-              {uploadState.uploading 
-                ? 'Uploading...' 
-                : uploadState.completed 
-                  ? 'Upload Complete' 
-                  : 'Upload to S3'}
-            </Button>
-          </CardContent>
-        </Card>
-      </Box>
-    </ThemeProvider>
+        {/* Bottom Buttons */}
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={handleCancel}
+            className="px-6 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={isUploadDisabled}
+            className={`px-6 py-2.5 rounded-lg font-medium transition-all ${
+              isUploadDisabled
+                ? 'bg-primary/40 text-primary-foreground cursor-not-allowed'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md'
+            }`}
+          >
+            {uploadState.uploading ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

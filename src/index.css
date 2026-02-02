@@ -2,39 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
-/* IDFC First Bank Design System - Red/Maroon with White */
+/* IDFC First Bank Design System - Light Theme with Maroon Accents */
 
 @layer base {
   :root {
-    /* Core backgrounds - IDFC Red/Maroon gradient */
-    --background: 350 70% 25%;
-    --foreground: 0 0% 100%;
+    /* Light background */
+    --background: 0 0% 96%;
+    --foreground: 0 0% 20%;
 
-    /* Card surfaces - Darker maroon */
-    --card: 350 65% 20%;
-    --card-foreground: 0 0% 100%;
+    /* Card - White */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
 
     /* Popover */
-    --popover: 350 65% 18%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
 
-    /* Primary - White for buttons/accents on dark bg */
-    --primary: 0 0% 100%;
-    --primary-foreground: 350 70% 25%;
+    /* Primary - IDFC Maroon/Red */
+    --primary: 352 62% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Lighter maroon */
-    --secondary: 350 55% 35%;
-    --secondary-foreground: 0 0% 100%;
+    /* Secondary - Light gray */
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 30%;
 
-    /* Muted surfaces */
-    --muted: 350 50% 30%;
-    --muted-foreground: 0 0% 85%;
+    /* Muted */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 50%;
 
-    /* Accent - Gold/amber for highlights */
-    --accent: 38 92% 50%;
-    --accent-foreground: 350 70% 15%;
+    /* Accent */
+    --accent: 352 62% 42%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Success - Green */
+    /* Success */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
@@ -43,40 +43,17 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Borders & inputs */
-    --border: 350 40% 40%;
-    --input: 350 50% 28%;
-    --ring: 0 0% 100%;
+    --border: 0 0% 85%;
+    --input: 0 0% 90%;
+    --ring: 352 62% 42%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Custom IDFC tokens */
-    --idfc-red: 350 70% 25%;
-    --idfc-dark-red: 350 75% 18%;
-    --idfc-light-red: 350 60% 35%;
-    --idfc-white: 0 0% 100%;
-    --idfc-gold: 38 92% 50%;
-  }
-
-  .dark {
-    --background: 350 75% 15%;
-    --foreground: 0 0% 100%;
-    --card: 350 70% 12%;
-    --card-foreground: 0 0% 100%;
-    --popover: 350 70% 10%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 350 70% 20%;
-    --secondary: 350 55% 25%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 350 50% 20%;
-    --muted-foreground: 0 0% 80%;
-    --accent: 38 92% 50%;
-    --accent-foreground: 350 70% 15%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 350 40% 30%;
-    --input: 350 50% 18%;
-    --ring: 0 0% 100%;
+    /* IDFC specific tokens */
+    --idfc-maroon: 352 62% 42%;
+    --idfc-maroon-light: 352 50% 55%;
+    --idfc-maroon-dark: 352 70% 35%;
+    --idfc-maroon-muted: 352 40% 60%;
   }
 }
 
@@ -91,35 +68,11 @@
   }
 }
 
-/* Custom utility classes for IDFC branding */
 @layer utilities {
-  .idfc-gradient-bg {
-    background: linear-gradient(135deg, 
-      hsl(350 75% 18%) 0%, 
-      hsl(350 70% 25%) 50%, 
-      hsl(350 65% 22%) 100%
+  .idfc-light-bg {
+    background: linear-gradient(180deg, 
+      hsl(0 0% 95%) 0%, 
+      hsl(0 0% 92%) 100%
     );
-  }
-
-  .idfc-card-glow {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4),
-                0 0 40px -10px rgba(255, 255, 255, 0.1);
-  }
-
-  .idfc-glass {
-    background: rgba(100, 30, 40, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-  }
-
-  .upload-zone-idfc {
-    border: 2px dashed rgba(255, 255, 255, 0.4);
-    transition: all 0.3s ease;
-  }
-
-  .upload-zone-idfc:hover,
-  .upload-zone-idfc.drag-over {
-    border-color: rgba(255, 255, 255, 0.8);
-    background: rgba(255, 255, 255, 0.05);
   }
 }
